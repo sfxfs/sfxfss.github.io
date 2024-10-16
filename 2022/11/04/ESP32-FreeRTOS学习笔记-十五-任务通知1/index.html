@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="" />
+  <meta name="author" content="FXF" />
+  <meta name="description" content="" />
+  
+  
+  <title>
+    
+      ESP32-FreeRTOS学习笔记(十五)--任务通知1 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <a href="/images/avatar.png">SsfxfsS</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/sfxfs">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="ssfxfss@qq.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="facebook" target="" href="">
+      <i class="iconfont icon-facebooksquare"></i>
+    </a>
+  
+    <a title="twitter" target="" href="">
+      <i class="iconfont icon-twitter"></i>
+    </a>
+  
+    <a title="wechat" target="" href="">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+    <a title="weibo" target="" href="">
+      <i class="iconfont icon-weibo"></i>
+    </a>
+  
+    <a title="rss" target="_blank" href="/atom.xml">
+      <i class="iconfont icon-rss"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Nov 04, 2022
+  </h3>
+  <h1>
+    ESP32-FreeRTOS学习笔记(十五)--任务通知1
+  </h1>
+  <div class="content markdown-body">
+    <p>Direct Task Notification是FreeRTOS 10版本以后的最重要的一个功能。他可以实现大部分二进制信号量，计数信号量，事件组，邮箱等等的功能。而且速度快45%，并且占用更少的内存，所以我们应该尽量使用任务通知这个功能。本集会深层次的讲解什么是notification，以及对他的读，写 和等待。一个任务将会有多个通知，一个通知包含<strong>值（value）</strong>以及<strong>状态（status）</strong>这两个内容，<strong>值</strong>占4个字节，<strong>状态</strong>占一个字节。</p>
+<h2 id="1-API介绍"><a href="#1-API介绍" class="headerlink" title="1.API介绍"></a>1.API介绍</h2><h3 id="1-发送通知"><a href="#1-发送通知" class="headerlink" title="1.发送通知"></a>1.发送通知</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">BaseType_t <span class="title function_">xTaskNotifyGive</span><span class="params">( TaskHandle_t xTaskToNotify )</span>;</span><br><span class="line"></span><br><span class="line">BaseType_t <span class="title function_">xTaskNotifyGiveIndexed</span><span class="params">( TaskHandle_t xTaskToNotify, </span></span><br><span class="line"><span class="params">                                    UBaseType_t uxIndexToNotify )</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">vTaskNotifyGiveFromISR</span><span class="params">( TaskHandle_t xTaskToNotify,</span></span><br><span class="line"><span class="params">                              BaseType_t *pxHigherPriorityTaskWoken )</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">vTaskNotifyGiveIndexedFromISR</span><span class="params">( TaskHandle_t xTaskToNotify, </span></span><br><span class="line"><span class="params">                                     UBaseType_t uxIndexToNotify, </span></span><br><span class="line"><span class="params">                                     BaseType_t *pxHigherPriorityTaskWoken )</span>;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">参数</th>
+<th align="center">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><em>xTaskToNotify</em></td>
+<td align="center">通知被发给指定的任务的句柄</td>
+</tr>
+<tr>
+<td align="center"><em>uxIndexToNotify</em></td>
+<td align="center">通知的检索值（一个任务可以有多个通知，可以指定放在哪个位置）</td>
+</tr>
+<tr>
+<td align="center">返回值</td>
+<td align="center">一定返回pdPASS</td>
+</tr>
+</tbody></table>
+<h3 id="2-接受通知"><a href="#2-接受通知" class="headerlink" title="2.接受通知"></a>2.接受通知</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint32_t</span> <span class="title function_">ulTaskNotifyTake</span><span class="params">( BaseType_t xClearCountOnExit,</span></span><br><span class="line"><span class="params">                            TickType_t xTicksToWait )</span>;</span><br><span class="line"> </span><br><span class="line"><span class="type">uint32_t</span> <span class="title function_">ulTaskNotifyTakeIndexed</span><span class="params">( UBaseType_t uxIndexToWaitOn, </span></span><br><span class="line"><span class="params">                                   BaseType_t xClearCountOnExit, </span></span><br><span class="line"><span class="params">                                   TickType_t xTicksToWait )</span>;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">参数</th>
+<th align="center">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">xClearCountOnExit</td>
+<td align="center">可以为pdTRUE和pdFALSE，为pdTRUE时整个通知会被恢复为0</td>
+</tr>
+<tr>
+<td align="center">xTicksToWait</td>
+<td align="center">最大等待时间</td>
+</tr>
+<tr>
+<td align="center">uxIndexToWaitOn</td>
+<td align="center">要等的通知的检索值</td>
+</tr>
+<tr>
+<td align="center">返回值</td>
+<td align="center">返回接受到的通知值</td>
+</tr>
+</tbody></table>
+<p><strong>以上两种发送和接受通知的方式适合作为二进制信号量和计数信号量来使用，因为这相比下面的API来说更加简单。</strong></p>
+<h3 id="3-等待通知"><a href="#3-等待通知" class="headerlink" title="3.等待通知"></a>3.等待通知</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">BaseType_t <span class="title function_">xTaskNotifyWait</span><span class="params">( <span class="type">uint32_t</span> ulBitsToClearOnEntry,</span></span><br><span class="line"><span class="params">                             <span class="type">uint32_t</span> ulBitsToClearOnExit,</span></span><br><span class="line"><span class="params">                             <span class="type">uint32_t</span> *pulNotificationValue,</span></span><br><span class="line"><span class="params">                             TickType_t xTicksToWait )</span>;</span><br><span class="line"></span><br><span class="line">BaseType_t <span class="title function_">xTaskNotifyWaitIndexed</span><span class="params">( UBaseType_t uxIndexToWaitOn, </span></span><br><span class="line"><span class="params">                                    <span class="type">uint32_t</span> ulBitsToClearOnEntry, </span></span><br><span class="line"><span class="params">                                    <span class="type">uint32_t</span> ulBitsToClearOnExit, </span></span><br><span class="line"><span class="params">                                    <span class="type">uint32_t</span> *pulNotificationValue, </span></span><br><span class="line"><span class="params">                                    TickType_t xTicksToWait )</span>;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">参数</th>
+<th align="center">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">ulBitsToClearOnEntry</td>
+<td align="center">进入前清除的位，不清除就填入0x0000</td>
+</tr>
+<tr>
+<td align="center">ulBitsToClearOnExit</td>
+<td align="center">退出前清除的位，不清除则填入0x0000</td>
+</tr>
+<tr>
+<td align="center">pulNotificationValue</td>
+<td align="center">获取通知的值</td>
+</tr>
+<tr>
+<td align="center">xTicksToWait</td>
+<td align="center">最大等待时间</td>
+</tr>
+<tr>
+<td align="center">uxIndexToWaitOn</td>
+<td align="center">等待的消息的检索值</td>
+</tr>
+<tr>
+<td align="center">返回值</td>
+<td align="center">在规定时间获取到则返回pdTRUE，否则返回pdFALSE</td>
+</tr>
+</tbody></table>
+<h3 id="4-发送通知"><a href="#4-发送通知" class="headerlink" title="4.发送通知"></a>4.发送通知</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">BaseType_t <span class="title function_">xTaskNotify</span><span class="params">( TaskHandle_t xTaskToNotify,</span></span><br><span class="line"><span class="params">                         <span class="type">uint32_t</span> ulValue,</span></span><br><span class="line"><span class="params">                         eNotifyAction eAction )</span>;</span><br><span class="line"></span><br><span class="line">BaseType_t <span class="title function_">xTaskNotifyIndexed</span><span class="params">( TaskHandle_t xTaskToNotify, </span></span><br><span class="line"><span class="params">                                UBaseType_t uxIndexToNotify, </span></span><br><span class="line"><span class="params">                                <span class="type">uint32_t</span> ulValue, </span></span><br><span class="line"><span class="params">                                eNotifyAction eAction )</span>;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">参数</th>
+<th align="center">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">xTaskToNotify</td>
+<td align="center">通知被发给指定的任务的句柄</td>
+</tr>
+<tr>
+<td align="center">ulValue</td>
+<td align="center">要更改的对方的通知的对应位</td>
+</tr>
+<tr>
+<td align="center">eAction</td>
+<td align="center">对对应位的操作，可以为eIncrement（增加一），eNoAction（不变），eSetBits（对应位置于1），eSetValueWithOverwrite（对应位置1，并且将其他原有为1的位置0），eSetValueWithoutOverwrite（对应位置1，但不把其他原有为1的位置0）</td>
+</tr>
+<tr>
+<td align="center">uxIndexToNotify</td>
+<td align="center">通知的索引值</td>
+</tr>
+<tr>
+<td align="center">返回值</td>
+<td align="center">只可能会返回pdPASS</td>
+</tr>
+</tbody></table>
+<h2 id="2-程序实例"><a href="#2-程序实例" class="headerlink" title="2.程序实例"></a>2.程序实例</h2><h3 id="1-wait与notify"><a href="#1-wait与notify" class="headerlink" title="1. wait与notify"></a>1. wait与notify</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">vAnEventProcessingTask</span><span class="params">( <span class="type">void</span> *pvParameters )</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="type">uint32_t</span> ulNotifiedValue;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span>( ;; )</span><br><span class="line">    &#123;</span><br><span class="line">        xTaskNotifyWaitIndexed( <span class="number">0</span>,         <span class="comment">/* 等待第0个通知. */</span></span><br><span class="line">                                <span class="number">0x00</span>,      <span class="comment">/* 在进入时不清除任何位. */</span></span><br><span class="line">                                ULONG_MAX, <span class="comment">/* 在退出前清除所有位. */</span></span><br><span class="line">                                &amp;ulNotifiedValue, <span class="comment">/* 接受到的消息. */</span></span><br><span class="line">                                portMAX_DELAY );  <span class="comment">/* 无限等待. */</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">/* 处理接受到的消息. */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span>( ( ulNotifiedValue &amp; <span class="number">0x01</span> ) != <span class="number">0</span> )</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">/* 第0位被置1 - 则触发对应函数. */</span></span><br><span class="line">            prvProcessBit0Event();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span>( ( ulNotifiedValue &amp; <span class="number">0x02</span> ) != <span class="number">0</span> )</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">/* 第1位被置1 - 则触发对应函数. */</span></span><br><span class="line">            prvProcessBit1Event();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span>( ( ulNotifiedValue &amp; <span class="number">0x04</span> ) != <span class="number">0</span> )</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">/* 第2位被置1 - 则触发对应函数. */</span></span><br><span class="line">            prvProcessBit2Event();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/* Etc. */</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-take和give"><a href="#2-take和give" class="headerlink" title="2. take和give"></a>2. take和give</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* 这是一个中断句柄. */</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">vANInterruptHandler</span><span class="params">( <span class="type">void</span> )</span></span><br><span class="line">&#123;</span><br><span class="line">BaseType_t xHigherPriorityTaskWoken;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Clear the interrupt. */</span></span><br><span class="line">    prvClearInterruptSource();</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* xHigherPriorityTaskWoken must be initialised to pdFALSE.  If calling</span></span><br><span class="line"><span class="comment">    vTaskNotifyGiveFromISR() unblocks the handling task, and the priority of</span></span><br><span class="line"><span class="comment">    the handling task is higher than the priority of the currently running task,</span></span><br><span class="line"><span class="comment">    then xHigherPriorityTaskWoken will automatically get set to pdTRUE. */</span></span><br><span class="line">    xHigherPriorityTaskWoken = pdFALSE;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Unblock the handling task so the task can perform any processing necessitated</span></span><br><span class="line"><span class="comment">    by the interrupt.  xHandlingTask is the task&#x27;s handle, which was obtained</span></span><br><span class="line"><span class="comment">    when the task was created. */</span></span><br><span class="line">    vTaskNotifyGiveIndexedFromISR( xHandlingTask, <span class="number">0</span>, &amp;xHigherPriorityTaskWoken );</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Force a context switch if xHigherPriorityTaskWoken is now set to pdTRUE.</span></span><br><span class="line"><span class="comment">    The macro used to do this is dependent on the port and may be called</span></span><br><span class="line"><span class="comment">    portEND_SWITCHING_ISR. */</span></span><br><span class="line">    portYIELD_FROM_ISR( xHigherPriorityTaskWoken );</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">/*-----------------------------------------------------------*/</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* A task that blocks waiting to be notified that the peripheral needs servicing,</span></span><br><span class="line"><span class="comment">processing all the events pending in the peripheral each time it is notified to </span></span><br><span class="line"><span class="comment">do so. */</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">vHandlingTask</span><span class="params">( <span class="type">void</span> *pvParameters )</span></span><br><span class="line">&#123;</span><br><span class="line">BaseType_t xEvent;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span>( ;; )</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">/* Block indefinitely (without a timeout, so no need to check the function&#x27;s</span></span><br><span class="line"><span class="comment">        return value) to wait for a notification.  Here the RTOS task notification</span></span><br><span class="line"><span class="comment">        is being used as a binary semaphore, so the notification value is cleared</span></span><br><span class="line"><span class="comment">        to zero on exit.  NOTE!  Real applications should not block indefinitely,</span></span><br><span class="line"><span class="comment">        but instead time out occasionally in order to handle error conditions</span></span><br><span class="line"><span class="comment">        that may prevent the interrupt from sending any more notifications. */</span></span><br><span class="line">        ulTaskNotifyTakeIndexed( <span class="number">0</span>,               <span class="comment">/* Use the 0th notification */</span></span><br><span class="line">                                 pdTRUE,          <span class="comment">/* Clear the notification value </span></span><br><span class="line"><span class="comment">                                                     before exiting. */</span></span><br><span class="line">                                 portMAX_DELAY ); <span class="comment">/* Block indefinitely. */</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">/* The RTOS task notification is used as a binary (as opposed to a</span></span><br><span class="line"><span class="comment">        counting) semaphore, so only go back to wait for further notifications</span></span><br><span class="line"><span class="comment">        when all events pending in the peripheral have been processed. */</span></span><br><span class="line">        <span class="keyword">do</span></span><br><span class="line">        &#123;</span><br><span class="line">            xEvent = xQueryPeripheral();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span>( xEvent != NO_MORE_EVENTS )</span><br><span class="line">            &#123;</span><br><span class="line">                vProcessPeripheralEvent( xEvent );</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">while</span>( xEvent != NO_MORE_EVENTS );</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/2022/11/02/ESP32-FreeRTOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0-%E5%8D%81%E5%9B%9B-%E4%BF%A1%E6%81%AF%E7%BC%93%E5%AD%98/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/2022/11/06/ESP32-FreeRTOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0-%E5%8D%81%E5%85%AD-%E4%BB%BB%E5%8A%A1%E9%80%9A%E7%9F%A52/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/leedom92/hexo-theme-leedom">Copyright © ssfxfss 2022</a>
+        
+    </div>
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/leedom92/hexo-theme-leedom">Theme by Leedom | Powered by Hexo</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div>
+  </body>
+</html>

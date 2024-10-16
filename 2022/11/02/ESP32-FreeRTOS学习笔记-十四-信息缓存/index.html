@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="" />
+  <meta name="author" content="FXF" />
+  <meta name="description" content="" />
+  
+  
+  <title>
+    
+      ESP32-FreeRTOS学习笔记(十四)--信息缓存 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <a href="/images/avatar.png">SsfxfsS</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/sfxfs">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="ssfxfss@qq.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="facebook" target="" href="">
+      <i class="iconfont icon-facebooksquare"></i>
+    </a>
+  
+    <a title="twitter" target="" href="">
+      <i class="iconfont icon-twitter"></i>
+    </a>
+  
+    <a title="wechat" target="" href="">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+    <a title="weibo" target="" href="">
+      <i class="iconfont icon-weibo"></i>
+    </a>
+  
+    <a title="rss" target="_blank" href="/atom.xml">
+      <i class="iconfont icon-rss"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Nov 02, 2022
+  </h3>
+  <h1>
+    ESP32-FreeRTOS学习笔记(十四)--信息缓存
+  </h1>
+  <div class="content markdown-body">
+    <p>Message Buffer是基于Stream Buffer的。只是在每一次发送数据的时候多了四个字节的空间用于存放消息的大小。更具这个消息大小，读取放就可以一次读取出全部消息的内容。在视频中，也会对全部三个FreeRTOS的数据类型进行对比，分别是Queue，Stream Buffer 和 Message Buffer。</p>
+<h2 id="1-API介绍"><a href="#1-API介绍" class="headerlink" title="1.API介绍"></a>1.API介绍</h2><h3 id="1-创建缓存"><a href="#1-创建缓存" class="headerlink" title="1.创建缓存"></a>1.创建缓存</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">MessageBufferHandle_t <span class="title function_">xMessageBufferCreate</span><span class="params">( <span class="type">size_t</span> xBufferSizeBytes )</span>;</span><br><span class="line"></span><br><span class="line">MessageBufferHandle_t <span class="title function_">xMessageBufferCreateWithCallback</span><span class="params">( </span></span><br><span class="line"><span class="params">                          <span class="type">size_t</span> xBufferSizeBytes,</span></span><br><span class="line"><span class="params">                          StreamBufferCallbackFunction_t pxSendCompletedCallback,</span></span><br><span class="line"><span class="params">                          StreamBufferCallbackFunction_t pxReceiveCompletedCallback )</span>;</span><br><span class="line"></span><br><span class="line">MessageBufferHandle_t <span class="title function_">xMessageBufferCreateStatic</span><span class="params">(</span></span><br><span class="line"><span class="params">                          <span class="type">size_t</span> xBufferSizeBytes,</span></span><br><span class="line"><span class="params">                          <span class="type">uint8_t</span> *pucMessageBufferStorageArea,</span></span><br><span class="line"><span class="params">                          StaticMessageBuffer_t *pxStaticMessageBuffer )</span>;</span><br><span class="line"></span><br><span class="line">MessageBufferHandle_t <span class="title function_">xMessageBufferCreateStaticWithCallback</span><span class="params">(</span></span><br><span class="line"><span class="params">                          <span class="type">size_t</span> xBufferSizeBytes,</span></span><br><span class="line"><span class="params">                          <span class="type">uint8_t</span> *pucMessageBufferStorageArea,</span></span><br><span class="line"><span class="params">                          StaticMessageBuffer_t *pxStaticMessageBuffer,</span></span><br><span class="line"><span class="params">                          StreamBufferCallbackFunction_t pxSendCompletedCallback,</span></span><br><span class="line"><span class="params">                          StreamBufferCallbackFunction_t pxReceiveCompletedCallback )</span>;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">参数</th>
+<th align="center">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">xBufferSizeBytes</td>
+<td align="center">缓存大小</td>
+</tr>
+<tr>
+<td align="center">pxSendCompletedCallback</td>
+<td align="center">发送完成回调函数</td>
+</tr>
+<tr>
+<td align="center">pxReceiveCompletedCallback</td>
+<td align="center">接受完成回调函数</td>
+</tr>
+<tr>
+<td align="center">pucMessageBufferStorageArea</td>
+<td align="center">用于存放要写入到缓存的数据，大小必须比xBufferSizeBytes大一个字节。</td>
+</tr>
+<tr>
+<td align="center">pxStaticMessageBuffer</td>
+<td align="center">存放缓存的内存空间</td>
+</tr>
+<tr>
+<td align="center">返回值</td>
+<td align="center">创建失败返回NULL，成功返回句柄</td>
+</tr>
+</tbody></table>
+<h3 id="2-发送数据到缓存"><a href="#2-发送数据到缓存" class="headerlink" title="2.发送数据到缓存"></a>2.发送数据到缓存</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">size_t</span> <span class="title function_">xMessageBufferSend</span><span class="params">( MessageBufferHandle_t xMessageBuffer,</span></span><br><span class="line"><span class="params">                           <span class="type">const</span> <span class="type">void</span> *pvTxData,</span></span><br><span class="line"><span class="params">                           <span class="type">size_t</span> xDataLengthBytes,</span></span><br><span class="line"><span class="params">                           TickType_t xTicksToWait )</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">size_t</span> <span class="title function_">xMessageBufferSendFromISR</span><span class="params">( MessageBufferHandle_t xMessageBuffer,</span></span><br><span class="line"><span class="params">                                  <span class="type">const</span> <span class="type">void</span> *pvTxData,</span></span><br><span class="line"><span class="params">                                  <span class="type">size_t</span> xDataLengthBytes,</span></span><br><span class="line"><span class="params">                                  BaseType_t *pxHigherPriorityTaskWoken )</span>;</span><br></pre></td></tr></table></figure>
+
+<p>与 <strong>stream buffer</strong> 的参数同理。</p>
+<h3 id="3-从缓存接受数据"><a href="#3-从缓存接受数据" class="headerlink" title="3.从缓存接受数据"></a>3.从缓存接受数据</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">size_t</span> <span class="title function_">xMessageBufferReceive</span><span class="params">( MessageBufferHandle_t xMessageBuffer,</span></span><br><span class="line"><span class="params">                              <span class="type">void</span> *pvRxData,</span></span><br><span class="line"><span class="params">                              <span class="type">size_t</span> xBufferLengthBytes,</span></span><br><span class="line"><span class="params">                              TickType_t xTicksToWait )</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">size_t</span> <span class="title function_">xMessageBufferReceiveFromISR</span><span class="params">( MessageBufferHandle_t xMessageBuffer,</span></span><br><span class="line"><span class="params">                                     <span class="type">void</span> *pvRxData,</span></span><br><span class="line"><span class="params">                                     <span class="type">size_t</span> xBufferLengthBytes,</span></span><br><span class="line"><span class="params">                                     BaseType_t *pxHigherPriorityTaskWoken )</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-删除和重置缓存"><a href="#4-删除和重置缓存" class="headerlink" title="4.删除和重置缓存"></a>4.删除和重置缓存</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">vMessageBufferDelete</span><span class="params">( MessageBufferHandle_t xMessageBuffer )</span>;</span><br><span class="line"></span><br><span class="line">BaseType_t <span class="title function_">xMessageBufferReset</span><span class="params">( MessageBufferHandle_t xMessageBuffer )</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-查询状态"><a href="#5-查询状态" class="headerlink" title="5.查询状态"></a>5.查询状态</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">size_t</span> <span class="title function_">xMessageBufferSpacesAvailable</span><span class="params">( MessageBufferHandle_t xMessageBuffer )</span>;</span><br><span class="line"></span><br><span class="line">BaseType_t <span class="title function_">xMessageBufferIsEmpty</span><span class="params">( MessageBufferHandle_t xMessageBuffer )</span>;</span><br><span class="line"></span><br><span class="line">BaseType_t <span class="title function_">xMessageBufferIsFull</span><span class="params">( MessageBufferHandle_t xMessageBuffer )</span>;</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-代码实例"><a href="#2-代码实例" class="headerlink" title="2.代码实例"></a>2.代码实例</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;freertos/message_buffer.h&gt;</span></span></span><br><span class="line"></span><br><span class="line">MessageBufferHandle_t xMessageBuffer = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">const</span> <span class="type">size_t</span> xMessageBufferSizeBytes = <span class="number">100</span>;</span><br><span class="line">xMessageBuffer = xMessageBufferCreate( xMessageBufferSizeBytes );</span><br><span class="line"></span><br><span class="line">String <span class="title function_">randomGPS</span><span class="params">()</span> &#123;</span><br><span class="line">  <span class="type">char</span> gps[<span class="number">30</span>];</span><br><span class="line"></span><br><span class="line">  <span class="type">static</span> <span class="type">int</span> counter = <span class="number">100</span>;</span><br><span class="line">  counter++;</span><br><span class="line">  <span class="keyword">switch</span> (random(<span class="number">0</span>, <span class="number">3</span>)) &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="number">0</span>:</span><br><span class="line">      <span class="comment">// 返回 经度 纬度 海拔</span></span><br><span class="line">      <span class="built_in">sprintf</span>(gps, <span class="string">&quot;%d-%d-%d-%d&quot;</span>, counter, random(<span class="number">100</span>, <span class="number">999</span>), random(<span class="number">100</span>, <span class="number">999</span>), random(<span class="number">100</span>, <span class="number">999</span>));</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> <span class="number">1</span>:</span><br><span class="line">      <span class="comment">// 返回 经度 纬度</span></span><br><span class="line">      <span class="built_in">sprintf</span>(gps, <span class="string">&quot;%d-%d-%d&quot;</span>, counter, random(<span class="number">100</span>, <span class="number">999</span>), random(<span class="number">100</span>, <span class="number">999</span>));</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> <span class="number">2</span>:</span><br><span class="line">      <span class="comment">// 返回 海拔</span></span><br><span class="line">      <span class="built_in">sprintf</span>(gps, <span class="string">&quot;%d-%d&quot;</span>, counter, random(<span class="number">100</span>, <span class="number">999</span>));</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> String(gps);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">readGPS</span><span class="params">(<span class="type">void</span> * pvParam)</span> &#123;</span><br><span class="line">  <span class="type">size_t</span> xBytesSent; <span class="comment">//The number of bytes written to the message buffer.</span></span><br><span class="line">  String gpsInfo;</span><br><span class="line">  <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">    gpsInfo = randomGPS(); <span class="comment">//随机发送不同长度的信息</span></span><br><span class="line">    xBytesSent = xMessageBufferSend( xMessageBuffer,</span><br><span class="line">                                     ( <span class="type">void</span> * ) &amp;gpsInfo,</span><br><span class="line">                                     <span class="keyword">sizeof</span>( gpsInfo ),</span><br><span class="line">                                     portMAX_DELAY );</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( xBytesSent != <span class="keyword">sizeof</span>( gpsInfo ) )</span><br><span class="line">    &#123;</span><br><span class="line">      Serial.println(<span class="string">&quot;危险: xMessageBufferSend 发送数据不完整&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    vTaskDelay(<span class="number">3000</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">gpsDecoder</span><span class="params">(String gpsinfo)</span> &#123;</span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">GPS</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> counter;</span><br><span class="line">    <span class="type">int</span> longVal;</span><br><span class="line">    <span class="type">int</span> latVal;</span><br><span class="line">    <span class="type">int</span> AltVal;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  String s1, s2, s3, s4;</span><br><span class="line">  <span class="type">int</span> counter = <span class="number">0</span>;</span><br><span class="line">  String gpsinfo2 = gpsinfo;</span><br><span class="line">  <span class="keyword">do</span> &#123;</span><br><span class="line">    counter++;</span><br><span class="line">    <span class="type">int</span> index = gpsinfo.indexOf(<span class="string">&#x27;-&#x27;</span>);</span><br><span class="line">    <span class="keyword">if</span> (gpsinfo.indexOf(<span class="string">&#x27;-&#x27;</span>) &lt; <span class="number">0</span>) gpsinfo = <span class="string">&quot;&quot;</span>;</span><br><span class="line">    gpsinfo = gpsinfo.substring(index + <span class="number">1</span>, gpsinfo.length());</span><br><span class="line">  &#125; <span class="keyword">while</span> (gpsinfo.length() &gt; <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">  GPS gps;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">switch</span> (counter) &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="number">2</span>:</span><br><span class="line">      gps.counter = gpsinfo2.substring(<span class="number">0</span>, <span class="number">3</span>).toInt();</span><br><span class="line">      gps.longVal = <span class="number">-1</span>;</span><br><span class="line">      gps.latVal = <span class="number">-1</span>;</span><br><span class="line">      gps.AltVal = gpsinfo2.substring(<span class="number">4</span>, <span class="number">7</span>).toInt();</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> <span class="number">3</span>:</span><br><span class="line">      gps.counter = gpsinfo2.substring(<span class="number">0</span>, <span class="number">3</span>).toInt();</span><br><span class="line">      gps.longVal = gpsinfo2.substring(<span class="number">4</span>, <span class="number">7</span>).toInt();</span><br><span class="line">      gps.latVal = gpsinfo2.substring(<span class="number">8</span>, <span class="number">11</span>).toInt();</span><br><span class="line">      gps.AltVal = <span class="number">-1</span>;</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> <span class="number">4</span>:</span><br><span class="line">      gps.counter = gpsinfo2.substring(<span class="number">0</span>, <span class="number">3</span>).toInt();</span><br><span class="line">      gps.longVal = gpsinfo2.substring(<span class="number">4</span>, <span class="number">7</span>).toInt();</span><br><span class="line">      gps.latVal = gpsinfo2.substring(<span class="number">8</span>, <span class="number">11</span>).toInt();</span><br><span class="line">      gps.AltVal = gpsinfo2.substring(<span class="number">12</span>, <span class="number">15</span>).toInt();</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">showGPS</span><span class="params">(<span class="type">void</span> * pvParam)</span> &#123;</span><br><span class="line">  <span class="type">size_t</span> xReceivedBytes;</span><br><span class="line">  String gpsInfo;</span><br><span class="line">  <span class="type">const</span> <span class="type">size_t</span> xMessageSizeMax = <span class="number">100</span>;</span><br><span class="line">  lcd.init();</span><br><span class="line">  lcd.backlight();</span><br><span class="line">  lcd.setCursor(<span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">  lcd.print(<span class="string">&quot;   GPS INFO&quot;</span>); <span class="comment">//clear this line</span></span><br><span class="line">  <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">    xReceivedBytes = xMessageBufferReceive( xMessageBuffer,</span><br><span class="line">                                            ( <span class="type">void</span> * ) &amp;gpsInfo,</span><br><span class="line">                                            xMessageSizeMax, <span class="comment">//This sets the maximum length of the message that can be received.</span></span><br><span class="line">                                            portMAX_DELAY );</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( xReceivedBytes &gt; <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">      gpsDecoder(gpsInfo); <span class="comment">//解码，并且显示到屏幕上</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    vTaskDelay(<span class="number">1000</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/2022/11/02/ESP32-FreeRTOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0-%E5%8D%81%E4%B8%89-%E6%B5%81%E5%AA%92%E4%BD%93%E7%BC%93%E5%AD%98/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/2022/11/04/ESP32-FreeRTOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0-%E5%8D%81%E4%BA%94-%E4%BB%BB%E5%8A%A1%E9%80%9A%E7%9F%A51/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/leedom92/hexo-theme-leedom">Copyright © ssfxfss 2022</a>
+        
+    </div>
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/leedom92/hexo-theme-leedom">Theme by Leedom | Powered by Hexo</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div>
+  </body>
+</html>

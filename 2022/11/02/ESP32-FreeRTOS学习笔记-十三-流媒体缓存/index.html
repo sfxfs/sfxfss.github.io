@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="" />
+  <meta name="author" content="FXF" />
+  <meta name="description" content="" />
+  
+  
+  <title>
+    
+      ESP32-FreeRTOS学习笔记(十三)--流媒体缓存 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <a href="/images/avatar.png">SsfxfsS</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/sfxfs">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="ssfxfss@qq.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="facebook" target="" href="">
+      <i class="iconfont icon-facebooksquare"></i>
+    </a>
+  
+    <a title="twitter" target="" href="">
+      <i class="iconfont icon-twitter"></i>
+    </a>
+  
+    <a title="wechat" target="" href="">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+    <a title="weibo" target="" href="">
+      <i class="iconfont icon-weibo"></i>
+    </a>
+  
+    <a title="rss" target="_blank" href="/atom.xml">
+      <i class="iconfont icon-rss"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    Nov 02, 2022
+  </h3>
+  <h1>
+    ESP32-FreeRTOS学习笔记(十三)--流媒体缓存
+  </h1>
+  <div class="content markdown-body">
+    <p>FreeRTOS 10以后引入了一个新的数据类型就是 Stream Buffer。它和Queue最大的不同就是，Stream Buffer读写的大小没有限制，而Queue是预设值好固定的值。Stream Buffer 流媒体缓存顾名思义它的受众对象就是 流媒体 比如MP3，视频，在线电台等。</p>
+<h2 id="1-API介绍"><a href="#1-API介绍" class="headerlink" title="1.API介绍"></a>1.API介绍</h2><h3 id="1-创建缓存"><a href="#1-创建缓存" class="headerlink" title="1.创建缓存"></a>1.创建缓存</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">StreamBufferHandle_t <span class="title">xStreamBufferCreate</span><span class="params">( <span class="type">size_t</span> xBufferSizeBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                                           <span class="type">size_t</span> xTriggerLevelBytes )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function">StreamBufferHandle_t <span class="title">xStreamBufferCreateWithCallback</span><span class="params">( </span></span></span><br><span class="line"><span class="params"><span class="function">                         <span class="type">size_t</span> xBufferSizeBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                         <span class="type">size_t</span> xTriggerLevelBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                         StreamBufferCallbackFunction_t pxSendCompletedCallback,</span></span></span><br><span class="line"><span class="params"><span class="function">                         StreamBufferCallbackFunction_t pxReceiveCompletedCallback )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function">StreamBufferHandle_t <span class="title">xStreamBufferCreateStatic</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">size_t</span> xBufferSizeBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">size_t</span> xTriggerLevelBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">uint8_t</span> *pucStreamBufferStorageArea,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    StaticStreamBuffer_t *pxStaticStreamBuffer )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function">StreamBufferHandle_t <span class="title">xStreamBufferCreateStaticWithCallback</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">size_t</span> xBufferSizeBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">size_t</span> xTriggerLevelBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">uint8_t</span> *pucStreamBufferStorageArea,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    StaticStreamBuffer_t *pxStaticStreamBuffer,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    StreamBufferCallbackFunction_t pxSendCompletedCallback,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    StreamBufferCallbackFunction_t pxReceiveCompletedCallback )</span></span>;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">参数</th>
+<th align="center">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><em>xBufferSizeBytes</em></td>
+<td align="center">一次能接受的最大字节数</td>
+</tr>
+<tr>
+<td align="center"><em>xTriggerLevelBytes</em></td>
+<td align="center">缓存内数据超过这个数值，才会被读取</td>
+</tr>
+<tr>
+<td align="center"><em>pxSendCompletedCallback</em></td>
+<td align="center">发送完成回调函数</td>
+</tr>
+<tr>
+<td align="center"><em>pxReceiveCompletedCallback</em></td>
+<td align="center">接受完成回调函数</td>
+</tr>
+<tr>
+<td align="center">返回值</td>
+<td align="center">返回NULL则内存不够无法创建，成功创建会返回句柄</td>
+</tr>
+</tbody></table>
+<h3 id="2-发送到缓存"><a href="#2-发送到缓存" class="headerlink" title="2.发送到缓存"></a>2.发送到缓存</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">xStreamBufferSend</span><span class="params">( StreamBufferHandle_t xStreamBuffer,</span></span></span><br><span class="line"><span class="params"><span class="function">                          <span class="type">const</span> <span class="type">void</span> *pvTxData,</span></span></span><br><span class="line"><span class="params"><span class="function">                          <span class="type">size_t</span> xDataLengthBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                          TickType_t xTicksToWait )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">xStreamBufferSendFromISR</span><span class="params">( StreamBufferHandle_t xStreamBuffer,</span></span></span><br><span class="line"><span class="params"><span class="function">                                 <span class="type">const</span> <span class="type">void</span> *pvTxData,</span></span></span><br><span class="line"><span class="params"><span class="function">                                 <span class="type">size_t</span> xDataLengthBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                                 BaseType_t *pxHigherPriorityTaskWoken )</span></span>;</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">参数</th>
+<th align="center">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><em>xStreamBuffer</em></td>
+<td align="center">要发送到的缓存的句柄</td>
+</tr>
+<tr>
+<td align="center"><em>pvTxData</em></td>
+<td align="center">指向要发送数据的指针</td>
+</tr>
+<tr>
+<td align="center"><em>xDataLengthBytes</em></td>
+<td align="center">向缓存发送的最大字节数</td>
+</tr>
+<tr>
+<td align="center"><em>pxHigherPriorityTaskWoken</em></td>
+<td align="center">可为NULL，让正在等待数据的任务解除阻塞态，并且那个任务的优先级高于此值</td>
+</tr>
+<tr>
+<td align="center">返回值</td>
+<td align="center">有多少字节数据被写到了缓存中</td>
+</tr>
+</tbody></table>
+<h3 id="3-从缓存接受数据"><a href="#3-从缓存接受数据" class="headerlink" title="3.从缓存接受数据"></a>3.从缓存接受数据</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">xStreamBufferReceive</span><span class="params">( StreamBufferHandle_t xStreamBuffer,</span></span></span><br><span class="line"><span class="params"><span class="function">                             <span class="type">void</span> *pvRxData,</span></span></span><br><span class="line"><span class="params"><span class="function">                             <span class="type">size_t</span> xBufferLengthBytes,	<span class="comment">//一次最大接受多少字节</span></span></span></span><br><span class="line"><span class="params"><span class="function">                             TickType_t xTicksToWait )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">xStreamBufferReceiveFromISR</span><span class="params">( StreamBufferHandle_t xStreamBuffer,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">void</span> *pvRxData,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    <span class="type">size_t</span> xBufferLengthBytes,</span></span></span><br><span class="line"><span class="params"><span class="function">                                    BaseType_t *pxHigherPriorityTaskWoken )</span></span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-删除缓存"><a href="#4-删除缓存" class="headerlink" title="4.删除缓存"></a>4.删除缓存</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">vStreamBufferDelete</span><span class="params">( StreamBufferHandle_t xStreamBuffer )</span></span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-改变缓存"><a href="#5-改变缓存" class="headerlink" title="5.改变缓存"></a>5.改变缓存</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//改变已经创建了的缓存的触发阈值</span></span><br><span class="line"><span class="function">BaseType_t <span class="title">xStreamBufferSetTriggerLevel</span><span class="params">( StreamBufferHandle_t xStreamBuffer,</span></span></span><br><span class="line"><span class="params"><span class="function">                                         <span class="type">size_t</span> xTriggerLevel )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">//重置缓存，清空所有数据</span></span><br><span class="line"><span class="function">BaseType_t <span class="title">xStreamBufferReset</span><span class="params">( StreamBufferHandle_t xStreamBuffer )</span></span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-缓存的相关信息"><a href="#6-缓存的相关信息" class="headerlink" title="6.缓存的相关信息"></a>6.缓存的相关信息</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//返回缓存内还有多少字节数据</span></span><br><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">xStreamBufferBytesAvailable</span><span class="params">( StreamBufferHandle_t xStreamBuffer )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">//返回缓存还剩多少空间</span></span><br><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">xStreamBufferSpacesAvailable</span><span class="params">( StreamBufferHandle_t xStreamBuffer )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">//缓存是否为空，返回pdTRUE或者pdFALSE</span></span><br><span class="line"><span class="function">BaseType_t <span class="title">xStreamBufferIsEmpty</span><span class="params">( StreamBufferHandle_t xStreamBuffer )</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">//缓存是否已满，返回pdTRUE或者pdFALSE</span></span><br><span class="line"><span class="function">BaseType_t <span class="title">xStreamBufferIsFull</span><span class="params">( StreamBufferHandle_t xStreamBuffer )</span></span>;</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-代码实例"><a href="#2-代码实例" class="headerlink" title="2.代码实例"></a>2.代码实例</h2><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;freertos/stream_buffer.h&gt;</span></span></span><br><span class="line"></span><br><span class="line">StreamBufferHandle_t xStreamMusic = <span class="literal">NULL</span>; <span class="comment">//创建一个 Stream Buffer 的 handler</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//Stream Buffer的最大尺寸，如果超出可能内存空间，那么创建Stream Buffer就会失败</span></span><br><span class="line">  <span class="type">const</span> <span class="type">size_t</span> xStreamBufferSizeBytes = <span class="number">540</span>;</span><br><span class="line">  <span class="comment">//Trigger Level - Stream Buffer内数据超过这个数值，才会被读取</span></span><br><span class="line">  <span class="type">const</span> <span class="type">size_t</span> xTriggerLevel = <span class="number">8</span>;</span><br><span class="line">xStreamMusic = <span class="built_in">xStreamBufferCreate</span>(xStreamBufferSizeBytes, xTriggerLevel);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">downloadTask</span><span class="params">(<span class="type">void</span> *pvParam)</span> </span>&#123; <span class="comment">//下载音乐</span></span><br><span class="line">  String music;</span><br><span class="line">  <span class="type">size_t</span> xBytesSent; <span class="comment">//The number of bytes written to the stream buffer.</span></span><br><span class="line">  <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//从网络下载音乐，放一些随机的延迟</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="built_in">random</span>(<span class="number">20</span>, <span class="number">40</span>); i++) <span class="built_in">vTaskDelay</span>(<span class="number">1</span>);</span><br><span class="line">    music = <span class="built_in">randomMusic</span>(); <span class="comment">//随机生成一些数据</span></span><br><span class="line"></span><br><span class="line">    xBytesSent = <span class="built_in">xStreamBufferSend</span>( xStreamMusic,</span><br><span class="line">                                    (<span class="type">void</span> *)&amp;music,</span><br><span class="line">                                    <span class="built_in">sizeof</span>(music),</span><br><span class="line">                                    portMAX_DELAY);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ( xBytesSent != <span class="built_in">sizeof</span>( music ) ) &#123;</span><br><span class="line">      Serial.<span class="built_in">println</span>(<span class="string">&quot;警告: xStreamBufferSend 写入数据出错&quot;</span>);  <span class="comment">//Optional</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">vTaskDelay</span>(<span class="number">100</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">playBackTask</span><span class="params">(<span class="type">void</span> *pvParam)</span> </span>&#123; <span class="comment">//解码并且播放</span></span><br><span class="line">  <span class="type">size_t</span> xReceivedBytes; <span class="comment">//The number of bytes read from the stream buffer.</span></span><br><span class="line">  <span class="type">size_t</span> xReadBytes = <span class="number">8</span>*<span class="number">10</span><span class="number">-1</span>;</span><br><span class="line">  String music;</span><br><span class="line">  <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">    xReceivedBytes = <span class="built_in">xStreamBufferReceive</span>( xStreamMusic,</span><br><span class="line">                                           ( <span class="type">void</span> * ) &amp;music,</span><br><span class="line">                                           xReadBytes,</span><br><span class="line">                                           portMAX_DELAY );</span><br><span class="line">    <span class="keyword">if</span> ( xReceivedBytes &gt; <span class="number">0</span> )</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="built_in">decode</span>(music);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/2022/10/29/ESP32-FreeRTOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0-%E5%8D%81%E4%BA%8C-%E4%BA%8B%E4%BB%B6%E6%A0%87%E5%BF%97%E7%BB%84/">OLDER&nbsp;&gt;</a>
+      
+        
+          <a id="newer" class="blog-nav" href="/2022/11/02/ESP32-FreeRTOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0-%E5%8D%81%E5%9B%9B-%E4%BF%A1%E6%81%AF%E7%BC%93%E5%AD%98/">&lt;&nbsp;NEWER</a>
+          
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/leedom92/hexo-theme-leedom">Copyright © ssfxfss 2022</a>
+        
+    </div>
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/leedom92/hexo-theme-leedom">Theme by Leedom | Powered by Hexo</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div>
+  </body>
+</html>

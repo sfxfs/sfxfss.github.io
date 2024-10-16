@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="keywords" content="" />
+  <meta name="author" content="FXF" />
+  <meta name="description" content="" />
+  
+  
+  <title>
+    
+      Nanopi neo core 作为下位机首次配置流程 
+      
+      
+    
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat|Roboto:400,400italic,600|Roboto+Mono" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/common.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+
+
+  
+
+  
+    
+<link rel="stylesheet" href="/css/post.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <a href="/images/avatar.png">SsfxfsS</a>
+</div>
+
+
+      <p class="links">
+  
+    <a title="archives" target="" href="/archives/">
+      <i class="iconfont icon-bookmark"></i>
+    </a>
+  
+    <a title="github" target="_blank" href="https://github.com/sfxfs">
+      <i class="iconfont icon-github"></i>
+    </a>
+  
+    <a title="email" target="" href="ssfxfss@qq.com">
+      <i class="iconfont icon-envelope"></i>
+    </a>
+  
+    <a title="facebook" target="" href="">
+      <i class="iconfont icon-facebooksquare"></i>
+    </a>
+  
+    <a title="twitter" target="" href="">
+      <i class="iconfont icon-twitter"></i>
+    </a>
+  
+    <a title="wechat" target="" href="">
+      <i class="iconfont icon-wechat"></i>
+    </a>
+  
+    <a title="weibo" target="" href="">
+      <i class="iconfont icon-weibo"></i>
+    </a>
+  
+    <a title="rss" target="_blank" href="/atom.xml">
+      <i class="iconfont icon-rss"></i>
+    </a>
+  
+</p>
+
+
+      <div class="main">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+<!-- LaTex Display -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+
+<div class="post">
+  <h3 class="date">
+    May 03, 2023
+  </h3>
+  <h1>
+    Nanopi neo core 作为下位机首次配置流程
+  </h1>
+  <div class="content markdown-body">
+    <p> <a target="_blank" rel="noopener" href="https://detail.yinxiang.com/index.html?guid=ba0bc618-4d29-4d47-ac6c-94ee43c146a3&loginName=zz&token=V1-5045541-MYjTa8q0ZLek6LeI38RvqD5jI24sVIuET6GRx9SRx+6LylYFWfpEohLy/GvK2k1C4rP7Xzg8KW3ITmaY3ABkQrRRKV0qmmvJzOQxupLrrBHjOgO1kKvbb0qVhVeAmkvE/4Zh8sYgbnZuLLj0qaPvTHhnkf37MKJ7Y2i/Ct54j8WhHzSEjBmO0qGrJSZVbxJ0&at=false&platformType=1&deviceinfo=%7B%22application%22:%22android_miniapp%22,%22applicationVersion%22:%221.1.22%22,%22platform%22:%22microsoft%22,%22platformVersion%22:%22Windows%2011%20x64%22,%22locale%22:%22zh_CN%22%7D&unionId=f5d82db79639969b9e276eb18f7d6c98&userId=36590286&sessionId=011Yboll2OePB94SKHll2I8bMS3Ybol1&channelId=wx75425a38a3ed6402">原本的配置流程链接</a></p>
+<h1 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h1><h2 id="硬件准备"><a href="#硬件准备" class="headerlink" title="硬件准备"></a>硬件准备</h2><ol>
+<li>NanoPi NEO Core 板子</li>
+<li>4G 及以上的 TF 卡和读卡器</li>
+<li>USB 转串口</li>
+<li>水下机器人主板（提供网口和供电）</li>
+</ol>
+<h2 id="软件准备"><a href="#软件准备" class="headerlink" title="软件准备"></a>软件准备</h2><ol>
+<li>安装 SSH 软件（较新的 Windows 系统一般自带，也可以去下载专门的 SSH 软件，如：<code>putty</code> 、<code>finalshell</code>、<code>MobXterm</code>等等）</li>
+<li>串口终端（如 <code>putty</code> 、<code>MobXterm</code> 等等）</li>
+<li>前往 <a target="_blank" rel="noopener" href="https://wiki.friendlyelec.com/wiki/index.php/NanoPi_NEO_Core/zh">官方 WiKi</a> 下载系统镜像，注意要下载 带 eflasher 的 Ubuntu xenial 4.14 ，即文件名类似于 <code>h3_ eflasher friendlycore-xenial_ 4.14_ armhf 20210618.img.zip</code> 的镜像文件</li>
+</ol>
+<h1 id="开始烧录固件"><a href="#开始烧录固件" class="headerlink" title="开始烧录固件"></a>开始烧录固件</h1><p>（全新的 Nano Pi 会内置该固件，可以直接跳到<strong>系统配置</strong>）</p>
+<h2 id="向-SD-卡写入镜像"><a href="#向-SD-卡写入镜像" class="headerlink" title="向 SD 卡写入镜像"></a>向 SD 卡写入镜像</h2><p>使用镜像写入工具（如 <code>win32diskimager</code>），选择指定镜像烧录（烧录前请确保 SD 卡只有一个分区）</p>
+<h2 id="使用串口连接-Nano-Pi"><a href="#使用串口连接-Nano-Pi" class="headerlink" title="使用串口连接 Nano Pi"></a>使用串口连接 Nano Pi</h2><p>请将 USB 转串口连接到 Nano Pi 的 RX0 和 TX0 引脚，并且共地，引脚图如下：</p>
+<p><img src="https://wiki.friendlyelec.com/wiki/images/5/53/NEO_Core_pinout-02.jpg"></p>
+<h2 id="电脑连接SBC"><a href="#电脑连接SBC" class="headerlink" title="电脑连接SBC"></a>电脑连接SBC</h2><ol>
+<li><p>将烧录好的 SD 卡插入 Nano Pi</p>
+</li>
+<li><p>使用 Nano Pi 上的 USB 给板子供电</p>
+</li>
+<li><p>将 USB 转串口连接到电脑的串口终端</p>
+</li>
+<li><p>输入账户密码进行登陆（用户账号和密码都是 <code>pi</code> ，root 用户密码是 <code>fa</code>），进入系统后在终端输入 <code>su root</code> 切换 root 用户，后执行 <code>eflasher</code> 命令进入如下界面：<img src="https://wiki.friendlyelec.com/wiki/images/0/09/Eflasher_friendlycore1.jpg"></p>
+</li>
+<li><p>输入“１”后按回车，选择烧写 friendlycore 系统到 eMMC 上后，会提示如下信息：<img src="https://wiki.friendlyelec.com/wiki/images/6/60/Eflasher_friendlycore2_h3.jpg"></p>
+</li>
+<li><p>输入“yes”，确定进行烧写：</p>
+<p><img src="https://wiki.friendlyelec.com/wiki/images/0/0c/Eflasher_friendlycore3.jpg"></p>
+</li>
+<li><p>等待烧写完毕后，断电并从卡槽中取出 TF 卡。</p>
+</li>
+</ol>
+<h1 id="系统配置"><a href="#系统配置" class="headerlink" title="系统配置"></a>系统配置</h1><h2 id="硬件连接"><a href="#硬件连接" class="headerlink" title="硬件连接"></a>硬件连接</h2><p>将 Nano Pi 插入调试主板后，给其供电并连接网口至路由器</p>
+<h2 id="电脑端操作"><a href="#电脑端操作" class="headerlink" title="电脑端操作"></a>电脑端操作</h2><ol>
+<li><p>到路由器后台查看 Nano Pi 的 IP 地址，使用 SSH 工具连接至 Nano Pi （用户账号和密码都是 <code>pi</code> ，root 用户密码是 <code>fa</code>）</p>
+</li>
+<li><p>更换国内软件源，终端输入 <code>sudo nano /etc/apt/sources.list</code> 后修改为如下内容：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports/ xenial main restricted universe multiverse</span><br><span class="line">deb http://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports/ xenial-updates main restricted universe multiverse</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>更新软件源（依次输入以下命令）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get clean</span><br><span class="line"></span><br><span class="line">sudo apt-get update</span><br><span class="line"></span><br><span class="line">sudo apt-get upgrade</span><br><span class="line"></span><br><span class="line"><span class="comment">#可能需要较长时间，期间不能关闭 SSH 连接</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>安装必备软件（依次输入以下命令）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install gdb htop cmake unzip i2c-tools autoconf automake libtool</span><br><span class="line"></span><br><span class="line">sudo apt-get install libgstreamer*</span><br><span class="line"></span><br><span class="line">sudo apt-get install libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-doc gstreamer1.0-tools gstreamer1.0-x gstreamer1.0-alsa gstreamer1.0-pulseaudio</span><br><span class="line"></span><br><span class="line"><span class="comment">#可能有些软件包找不到了，请在命令中删除那些软件包的名字再尝试安装</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>到 Github 下载 rovmaster 的源码 zip 压缩包，使用网络传输到 Nano Pi ，在 SSH 终端中使用 <code>unzip</code> 命令进行解压</p>
+</li>
+<li><p>解压后进入 <strong>rov-master-main</strong> 文件夹，输入 <code>sudo chmod +x build.sh</code> 后输入 <code>sudo ./build.sh</code> 进行依赖编译</p>
+</li>
+<li><p>显示 <em>构建完成</em> 后，输入命令 <code>make</code> 后<strong>没有错误</strong>后，再输入一次 <code>make</code> 就会产生可执行文件 <code>rovmaster</code></p>
+</li>
+<li><p>使能 <code>spi1</code> 外设，输入 <code>udo npi-config</code> 命令后到 <code>\&gt; Advanced Options</code> 中使能相关 SPI 设备</p>
+</li>
+<li><p>修改静态 IP ，输入命令 <code>sudo nano /etc/network/interfaces</code> 后将原文件内容注释掉后加上：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">allow-hotplug eth0</span><br><span class="line">iface eth0 inet static</span><br><span class="line">address 192.168.137.219</span><br><span class="line">netmask 255.255.255.0</span><br><span class="line">gateway 192.168.137.1</span><br><span class="line">dns-nameservers 192.168.137.1</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>配置结束</p>
+</li>
+</ol>
+
+  </div>
+  
+    
+      <a id="older" class="blog-nav" href="/2023/04/03/RockPi-5B-Armbian-%E9%A6%96%E6%AC%A1%E5%BC%80%E6%9C%BA%E8%AE%BE%E7%BD%AE%E6%B5%81%E7%A8%8B/">OLDER&nbsp;&gt;</a>
+      
+        
+            
+</div>
+        <div class="footer">
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/leedom92/hexo-theme-leedom">Copyright © ssfxfss 2022</a>
+        
+    </div>
+  
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://github.com/leedom92/hexo-theme-leedom">Theme by Leedom | Powered by Hexo</a>
+        
+    </div>
+  
+</div>
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+  <div class="search-icon" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-box">
+        <div class="search-title">
+          <!-- <span class="search-icon-input">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </span> -->
+          
+            <input type="text" class="search-input" id="search-input" placeholder="搜索">
+          
+          <span class="search-close-icon" id="search-close-icon">
+            <a href="javascript: void(0)">
+              <i class="iconfont icon-close"></i>
+            </a>
+          </span>
+        </div>
+        <div class="search-result" id="search-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    // inputArea.onclick = function() {
+    //   getSearchFile()
+    //   this.onclick = null
+    // }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        inputArea.focus()
+        getSearchFile()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'><span></ul>";
+      // $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'><h2>" + orig_data_title + "</h2></a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<h3 class=\"search-result-abstract\">" + match_content + "...</h3>"
+                }
+                str += "<hr></li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/leedom92/hexo-theme-leedom#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+    </div>
+  </body>
+</html>
